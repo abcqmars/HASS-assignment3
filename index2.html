@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resale Price Change by Town</title>
+    <script src="https://d3js.org/d3.v5.js"></script>
+    <style>
+        svg {
+            width: 95%;
+            height: 90%;
+        }
+
+
+        /* body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            /* align-items: center; }*/
+
+        .category1 {
+            stroke: #000000;
+            fill: #e64b4b;
+            opacity: 1;
+        }
+
+        .category2 {
+            stroke: #000000;
+            fill: #69b3a2;
+            opacity: 1;
+        }
+
+        .category3 {
+            stroke: #000000;
+            fill: #2bac11;
+            opacity: 1;
+        }
+
+        .category4 {
+            stroke: #000000;
+            fill: #6972ee;
+            opacity: 1;
+        }
+
+        .category5 {
+            stroke: #000000;
+            fill: #ffa806;
+            opacity: 1;
+        }
+
+        .category6 {
+            stroke: #000000;
+            fill: #e6079c;
+            opacity: 1;
+        }
+
+        .category7 {
+            stroke: #000000;
+            fill: #d0e607;
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="tooltips"></div>
+    <svg id="datavis"></svg>
+    <script>
+        const parseDate = d3.timeParse("%Y-%m");
+        const margin = { top: 50, right: 100, bottom: 100, left: 150 };
+        const width = 2400;
+        const height = 800;
+
+        function washdata(data) {
+            wahseddata = [];
+            data.forEach(d => {
+                const { month, resale_price, floor_area_sqm, flat_type } = d;
+                const psf = resale_price / floor_area_sqm;
+                // console.log(parseDate(month).year)
+                wahseddata.push({ date: d3.timeParse("%Y-%m")(month).getFullYear(), psf: psf, area: floor_area_sqm, flat_type: flat_type });
+            });
+            return wahseddata;
+        }
+
+        function dividedata(data, rules, args) {
+            // rules takes take arguments.
+            // return object with "category" key.
+            const categorizedData = data.map(d => {
+                const c = rules(d, args);
+                return { ...d, category: c ? c.category : "Unknown" };
+            });
+
+            return categorizedData.filter(d => d.category != "Unknown");
+        }
+
+        function rangerule(d, args) {
+            const r = args.find(r => d.area >= r.min && d.area <= r.max);
+            return r;
+        }
+
+        function flattyperule(d, args) {
+            const r = args.find(r => r.type == d.flat_type);
+            return r;
+        }
+
+
+
+        function cookforvis(data) {
+            var cookeddata = d3.nest()
+                .key(function (d) { return d.category; })
+                .key(function (d) { return d.date; })
+                .rollup(function (g) {
+                    q1 = d3.quantile(g.map(function (d) { return d.psf; }).sort(d3.ascending), .25)
+                    median = d3.quantile(g.map(function (d) { return d.psf; }).sort(d3.ascending), .5)
+                    q3 = d3.quantile(g.map(function (d) { return d.psf; }).sort(d3.ascending), .75)
+                    interQuantileRange = q3 - q1
+                    min = d3.min(g.map(function (d) { return d.psf }))//q1 - 1.5 * interQuantileRange
+                    max = d3.max(g.map(function (d) { return d.psf }))//q3 + 1.5 * interQuantileRange
+                    return ({ q1: q1, median: median, q3: q3, interQuantileRange: interQuantileRange, min: min, max: max })
+                })
+                .entries(data);
+            return cookeddata;
+        }
+
+        function cookformulticvis(data) {
+            var cookeddata = d3.nest()
+                .key(function (d) { return d.date; })
+                .key(function (d) { return d.category; })
+                .rollup(function (g) {
+                    q1 = d3.quantile(g.map(function (d) { return d.psf; }).sort(d3.ascending), .25)
+                    median = d3.quantile(g.map(function (d) { return d.psf; }).sort(d3.ascending), .5)
+                    q3 = d3.quantile(g.map(function (d) { return d.psf; }).sort(d3.ascending), .75)
+                    interQuantileRange = q3 - q1
+                    min = d3.min(g.map(function (d) { return d.psf }))//q1 - 1.5 * interQuantileRange
+                    max = d3.max(g.map(function (d) { return d.psf }))//q3 + 1.5 * interQuantileRange
+                    return ({ q1: q1, median: median, q3: q3, interQuantileRange: interQuantileRange, min: min, max: max })
+                })
+                .entries(data);
+            return cookeddata;
+        }
+
+        function setchartstyle() {
+
+            const svg = d3.select("#datavis")
+                // .append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .attr("viewBox", [0, 0, width, height])
+                .attr("style", "max-width: 100%; height: auto;");
+
+            svg.append("rect")
+                .attr("width", "100%")
+                .attr("height", "100%")
+                .attr("fill", "lightgray")
+                .attr("opacity", 0.3)
+                .attr("stroke", "black")
+
+            return svg;
+        }
+
+        function setxyaxes(svg, data) {
+
+            var uniqueX = Array.from(new Set(data.map(d => d.date)))
+            console.log(uniqueX);
+            const x = d3.scaleBand()
+                .range([margin.left, width - margin.right])
+                .domain(uniqueX)
+                .paddingInner(0.3)
+            //data.map(d => d.date)
+            // .padding([0.5])
+            // .paddingOuter(0.5)
+            // .padding(1);
+            // .paddingInner(1).paddingOuter(0.5);
+
+            console.log(x.bandwidth());
+
+            svg.append("g")
+                .attr("transform", "translate(0," + (height - margin.bottom) + ")")
+                .call(d3.axisBottom(x).ticks(width / 80).tickSize(15).tickSizeOuter(0))
+                .selectAll("text") // Select all tick labels
+                .style("font-size", "25px"); // Set the font size of tick labels
+
+            // Append axis label
+            svg.append("text")
+                .attr("x", (width - margin.right + margin.left) / 2)
+                .attr("y", height - 10) // reference coordinate is the created axis
+                .attr("text-anchor", "middle")
+                .attr("fill", "black")
+                .attr("font-size", "40px")
+                .text("Year");
+
+            var y = d3.scaleLinear()
+                .domain([d3.max(data.map(d => d.psf)), d3.min(data.map(d => d.psf))])
+                .range([margin.top, height - margin.bottom])
+
+            svg.append("g")
+                .attr("transform", "translate(" + margin.left + "," + 0 + ")")
+                .call(d3.axisLeft(y))
+                .selectAll("text") // Select all tick labels
+                .style("font-size", "25px"); // Set the font size of tick labels
+
+            svg.append("text") // Append y-axis label
+                .attr("text-anchor", "middle")
+                .attr("x", -height / 2)//-height / 2)
+                .attr("y", margin.left / 4)//-margin.left / 2)
+                .attr("transform", "rotate(-90)")
+                .attr("font-size", "40px")
+                .attr("fill", "black")
+                .text("Price per Square Foot");
+
+            return [x, y];
+        }
+
+        function addviselements(svg, data, scales, category, style) {
+
+            var onerangedata = data.filter(d => d.key == category)[0].values;
+            // data[0].values; // array of dict with key is hte year, value is the data.
+            var [x, y] = scales;
+            svg.selectAll(".vertLines").remove();
+            svg.selectAll(".boxes").remove();
+            svg.selectAll(".medianLines").remove();
+
+            svg.selectAll("vertLines")
+                .data(onerangedata)
+                .enter()
+                .append("line")
+                .classed("vertLines", true)
+                .attr("x1", function (d) { return (x(d.key) + x.bandwidth() / 2) })
+                .attr("x2", function (d) { return (x(d.key)) + x.bandwidth() / 2 })
+                .attr("y1", function (d) { return (y(d.value.min)) })
+                .attr("y2", function (d) { return (y(d.value.max)) })
+                .attr("stroke", "black")
+                .style("width", 40)
+
+            // console.log(x.bandwidth());
+
+            var boxWidth = x.bandwidth() / 2;//x.bandwidth()
+            svg.selectAll("boxes")
+                .data(onerangedata)
+                .enter()
+                .append("rect")
+                .attr("x", function (d) { return (x(d.key) + x.bandwidth() / 4) })
+                .attr("y", function (d) { return (y(d.value.q3)) })
+                .attr("height", function (d) { return (y(d.value.q1) - y(d.value.q3)) })
+                .attr("width", boxWidth)
+                .attr("class", style)
+                .classed("boxes", true)
+
+
+            // svg.selectAll("medianLines").remove();
+            // svg.selectAll("line").remove();
+            svg.selectAll("medianLines")
+                .data(onerangedata)
+                .enter()
+                .append("line")
+                .classed("medianLines", true)
+                .attr("x1", function (d) { return (x(d.key) + x.bandwidth() / 4) })
+                .attr("x2", function (d) { return (x(d.key) + x.bandwidth() * 3 / 4) })
+                .attr("y1", function (d) { return (y(d.value.median)) })
+                .attr("y2", function (d) { return (y(d.value.median)) })
+                .attr("stroke", "black")
+
+            // .style("width", x.bandwidth())
+        }
+
+        function addviselements_multi(svg, data, scales, divides) {
+
+            var tooltip = d3.select("#tooltips")
+                // .append("div")
+                .style("opacity", 0)
+                .attr("class", "tooltip")
+                .style("background-color", "black")
+                .style("border-radius", "5px")
+                .style("padding", "10px")
+                .style("color", "white")
+
+
+            var showTooltip = function (d, element) {
+                tooltip
+                    .transition()
+                    .duration(200)
+                tooltip
+                    .style("opacity", 1)
+                    .html("Room Type: " + d.key)
+                    .style("left", d3.event.pageX + 30)//.style(d3.mouse(element)[0] + 30 + "px")
+                    .style("top", d3.event.pageY + 30)//.style(d3.mouse(element)[1] + 30 + "px")
+                console.log(d3.mouse(element)[1] + 30, d.key)
+            }
+
+            var moveTooltip = function (d, element) {
+                tooltip
+                    .style("left", (d3.mouse(element)[0] + 30) + "px")
+                    .style("top", (d3.mouse(element)[1] + 30) + "px");
+            }
+
+            var hideTooltip = function (d) {
+                tooltip
+                    .transition()
+                    .duration(200)
+                    .style("opacity", 1);
+            }
+
+            /////////////////////////////////////////
+            var num_subgroups = divides.length;
+            var subgroups = divides.map(d => d.category)
+            var [x, y] = scales;
+
+            // Create sub scales.
+            var xSubgroup = d3.scaleBand()
+                .domain(subgroups)
+                .range([0, x.bandwidth()])
+                .paddingInner(0.2)
+
+
+            svg.append("g")
+                .selectAll("g")
+                .data(data)
+                .enter()
+                .append("g")
+                .attr("transform", function (d) { return "translate(" + x(d.key) + ",0)"; }) //d.key should be year.
+                .selectAll("vertLines")
+                .data(d => { return d.values; })
+                .enter()
+                .append("line")
+                .classed("vertLines", true)
+                .attr("x1", function (d) { return xSubgroup(d.key) + xSubgroup.bandwidth() })
+                .attr("x2", function (d) { return xSubgroup(d.key) + xSubgroup.bandwidth() })
+                .attr("y1", function (d) { return (y(d.value.min)) })
+                .attr("y2", function (d) { return (y(d.value.max)) })
+                .attr("stroke", "black")
+                .style("width", 40)
+                .attr("class", d => { return divides.filter(g => { return d.key == g.category })[0].stylename })
+
+            svg.append("g")
+                .selectAll("g")
+                .data(data)
+                .enter()
+                .append("g")
+                .attr("transform", function (d) { return "translate(" + x(d.key) + ",0)"; }) //d.key should be year.
+                .selectAll("rect")
+                .data(d => { return d.values; })
+                .enter()
+                .append("rect")
+                .attr("x", function (d) { return xSubgroup(d.key) + xSubgroup.bandwidth() / 2 })
+                .attr("y", function (d) { return (y(d.value.q3)) })
+                .attr("height", function (d) { return (y(d.value.q1) - y(d.value.q3)) })
+                .attr("width", xSubgroup.bandwidth())
+                .attr("class", d => { return divides.filter(g => { return d.key == g.category })[0].stylename })
+                .classed("boxes", true)
+                .on("mouseover", function (d) { showTooltip(d, this); })
+                .on("mousemove", function (d) { moveTooltip(d, this); })
+                .on("mouseleave", hideTooltip)
+
+            svg.append("g")
+                .selectAll("g")
+                .data(data)
+                .enter()
+                .append("g")
+                .attr("transform", function (d) { return "translate(" + x(d.key) + ",0)"; }) //d.key should be year.
+                .selectAll("vertLines")
+                .data(d => { return d.values; })
+                .enter()
+                .append("line")
+                .classed("medianLines", true)
+                .attr("x1", function (d) { return (xSubgroup(d.key) + xSubgroup.bandwidth() / 2) })
+                .attr("x2", function (d) { return (xSubgroup(d.key) + xSubgroup.bandwidth() * 3 / 2) })
+                .attr("y1", function (d) { return (y(d.value.median)) })
+                .attr("y2", function (d) { return (y(d.value.median)) })
+                .attr("stroke", "black")
+
+            // svg.selectAll("seplines")
+            //     .data(data)
+            //     .enter()
+            //     .append("line")
+            //     .classed("seplines", true)
+            //     .attr("x1", function (d) { return x(d.key) + x.bandwidth() })
+            //     .attr("x2", function (d) { return x(d.key) + x.bandwidth() })
+            //     .attr("y1", function (d) { return margin.top })
+            //     .attr("y2", function (d) { return margin.top + height })
+            //     .attr("stroke", "black")
+            //     .style("width", 40)
+        }
+
+
+        function toggleCategory(category) {
+            const elements = d3.selectAll("." + category);
+            const opacity = elements.style("opacity") === "0" ? "0.4" : "0"; // Toggle opacity
+            elements.style("opacity", opacity);
+        }
+
+        // Function to create legends
+        function createLegends(svg, categories) {
+            const legendContainer = d3.select("#legend");
+            categories.forEach((category, index) => {
+                const legend = legendContainer.append("div")
+                    .attr("class", "legend")
+                    .on("click", () => toggleCategory(category));
+
+                legend.append("div")
+                    .attr("class", "legend-box")
+                    .style("background-color", d3.select("." + category).style("fill"));
+
+                legend.append("span").text("Category " + (index + 1));
+            });
+        }
+
+        // const divides = [
+        //     { category: "30-76", min: 30, max: 76, stylename: "category1" },
+        //     { category: "77-97", min: 77, max: 97, stylename: "category2" },
+        //     { category: "98-130", min: 98, max: 130, stylename: "category3" },
+        //     { category: "131-251", min: 131, max: 251, stylename: "category4" },
+        // ];
+
+        const divides = [
+            { category: "1 ROOM", type: "1 ROOM", stylename: "category1" },
+            { category: "2 ROOM", type: "2 ROOM", stylename: "category2" },
+            { category: "3 ROOM", type: "3 ROOM", stylename: "category3" },
+            { category: "4 ROOM", type: "4 ROOM", stylename: "category4" },
+            { category: "5 ROOM", type: "5 ROOM", stylename: "category5" },
+            // { category: "EXECUTIVE", type: "EXECUTIVE", stylename: "category6" },
+            // { category: "MULTI-GENERATION", type: "MULTI-GENERATION", stylename: "category7" },
+
+        ];
+
+        const data = d3.csv("ResaleflatpricesbasedonregistrationdatefromJan2017onwards.csv").then(function (data) {
+            // filter necessesory keys and values and make them an array of object.
+            var washeddata = washdata(data);
+            // Categorize data and Assign Category key to each data item.
+            var divideddata = dividedata(washeddata, flattyperule, divides);
+            // Prepare the data into the format that is suitable for visualization.
+            var cookeddata = cookformulticvis(divideddata);
+            console.log(cookeddata);
+            // Set up svg attribuets and axes scales.
+            var svg = setchartstyle();
+            var scales = setxyaxes(svg, washeddata);
+            addviselements_multi(svg, cookeddata, scales, divides)
+            // // Add visulization elements to the skeletons.
+            // c = divides[1];
+            // addviselements(svg, cookeddata, scales, c.category, c.stylename);
+        });
+
+
+
+    </script>
+</body>
+
+</html>
