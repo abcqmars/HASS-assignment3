@@ -268,8 +268,8 @@
 
         function addviselements_multi(svg, data, scales, divides) {
 
-            var tooltip = d3.select("#tooltips")
-                // .append("div")
+            var tooltip = d3.select("#datavis")
+                .append("div")
                 .style("opacity", 0)
                 .attr("class", "tooltip")
                 .style("background-color", "black")
