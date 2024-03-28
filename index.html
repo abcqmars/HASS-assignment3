@@ -50,14 +50,14 @@
             /* align-items: center;  */
         }
 
-        .headtxt{
+        .headtxt {
             font-size: 30px;
             justify-content: center;
             display: flex;
             margin-bottom: 0px;
         }
 
-        .captiontxt{
+        .captiontxt {
             font-size: 20px;
             justify-content: center;
             display: flex;
@@ -159,13 +159,23 @@
         <span class="headtxt">Assignment 3 - Tabular Data Visualization</span>
         <span class="captiontxt">
             <ul id="myList">
+                <strong>Hypothesis:</strong>
                 <li>
-                    How  does the Per Square Foot(psf) of HDB price  vary from 2017 to now?
+                    How does the Per Square Foot(psf) of HDB price vary from 2017 to now?
                 </li>
                 <li>
                     How does the types of the HDB affect their psf?
                 </li>
-              </ul>
+            </ul>
+            <ul id="myList">
+                <strong>Interactivity:</strong>
+                <li>
+                    Hover over box to see detailed information.
+                </li>
+                <li>
+                    Toggle the legend to selectively display.
+                </li>
+            </ul>
         </span><br><br>
         <span>
         </span><br>
@@ -466,13 +476,15 @@
                     .enter()
                     .append("line")
                     .merge(verlines_group)
+                    .attr("stroke", "black")
+                    .style("width", 40)
+                    .classed("vertLines", true)
+                    .transition()
+                    .duration(300)
                     .attr("x1", function (d) { return xSubgroup(d.key) + xSubgroup.bandwidth() })
                     .attr("x2", function (d) { return xSubgroup(d.key) + xSubgroup.bandwidth() })
                     .attr("y1", function (d) { return (y(d.value.min)) })
                     .attr("y2", function (d) { return (y(d.value.max)) })
-                    .attr("stroke", "black")
-                    .style("width", 40)
-                    .classed("vertLines", true)
                 verlines_group.exit().remove()
 
 
@@ -482,31 +494,39 @@
                     .enter()
                     .append("rect")
                     .merge(boxes_group)
-                    .attr("x", function (d) { return xSubgroup(d.key) + xSubgroup.bandwidth() / 2 })
-                    .attr("y", function (d) { return (y(d.value.q3)) })
-                    .attr("height", function (d) { return (y(d.value.q1) - y(d.value.q3)) })
-                    .attr("width", xSubgroup.bandwidth())
                     .attr("class", d => { return divides.filter(g => { return d.key == g.category })[0].stylename })
                     .classed("boxes", true)
                     .on("mouseover", function (d) { showTooltip(d, this); })
                     .on("mousemove", function (d) { moveTooltip(d, this); })
                     .on("mouseleave", hideTooltip)
+                    .transition()
+                    .duration(300)
+                    .attr("x", function (d) { return xSubgroup(d.key) + xSubgroup.bandwidth() / 2 })
+                    .attr("y", function (d) { return (y(d.value.q3)) })
+                    .attr("height", function (d) { return (y(d.value.q1) - y(d.value.q3)) })
+                    .attr("width", xSubgroup.bandwidth())
                 boxes_group.exit().remove()
 
 
                 const medianLines_group = svg.selectAll(".medianLines_group").selectAll(".medianLines")
-                    .data(d => { return d.values.filter(i => selected_categories.includes(i.key)); })
-                medianLines_group
-                    .enter()
+                    .data(d => { return d.values.filter(i => selected_categories.includes(i.key)); });
+
+                // Enter and update selection
+                medianLines_group.enter()
                     .append("line")
                     .merge(medianLines_group)
-                    .attr("x1", function (d) { return (xSubgroup(d.key) + xSubgroup.bandwidth() / 2) })
-                    .attr("x2", function (d) { return (xSubgroup(d.key) + xSubgroup.bandwidth() * 3 / 2) })
-                    .attr("y1", function (d) { return (y(d.value.median)) })
-                    .attr("y2", function (d) { return (y(d.value.median)) })
                     .attr("stroke", "black")
                     .classed("medianLines", true)
-                medianLines_group.exit().remove()
+                    .transition()
+                    .duration(300)
+                    .attr("x1", function (d) { return (xSubgroup(d.key) + xSubgroup.bandwidth() / 2); })
+                    .attr("x2", function (d) { return (xSubgroup(d.key) + xSubgroup.bandwidth() * 3 / 2); })
+                    .attr("y1", function (d) { return (y(d.value.median)); })
+                    .attr("y2", function (d) { return (y(d.value.median)); })
+
+                // Exit selection
+                medianLines_group.exit().remove();
+
 
             }
 
@@ -538,8 +558,6 @@
                 .attr("stroke", "black")
                 .style("width", 40)
                 .classed("vertLines", true)
-            // .classed("vertLines", true)
-            // .attr("class", d => { return divides.filter(g => { return d.key == g.category })[0].stylename })
 
             //boxes
             svg.selectAll(".boxes_group")
@@ -558,6 +576,8 @@
                 .attr("width", xSubgroup.bandwidth())
                 .attr("class", d => { return divides.filter(g => { return d.key == g.category })[0].stylename })
                 .classed("boxes", true)
+                // .transition()
+                // .duration(300)
                 .on("mouseover", function (d) { showTooltip(d, this); })
                 .on("mousemove", function (d) { moveTooltip(d, this); })
                 .on("mouseleave", hideTooltip)
