@@ -11,62 +11,165 @@
             height: 90%;
         }
 
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            /* Set the width to 100% to span the entire width of the viewport */
+            background-color: white;
+            /* Optional: set a background color for better contrast */
+            /* padding: 10px; */
+            /* Optional: add padding for spacing */
+            z-index: 2;
+            /* Ensure the header is above the SVG */
+        }
 
-        /* body,
+        svg#datavis {
+            position: absolute;
+            top: 150px;
+            /* Adjust the top position to leave space for the header */
+            left: 0;
+            width: 100%;
+            /* Set the width to 100% to span the entire width of the viewport */
+            height: calc(100% - 60px);
+            /* Adjust the height to fill the remaining viewport height after considering the header */
+            z-index: 3;
+            /* Ensure the SVG is behind the header */
+            /* Add other styling for your SVG as needed */
+        }
+
+
+        body,
         html {
             margin: 0;
             padding: 0;
             height: 100%;
             display: flex;
             justify-content: center;
-            /* align-items: center; }*/
+            /* align-items: center;  */
+        }
+
+        .headtxt{
+            font-size: 30px;
+            justify-content: center;
+            display: flex;
+            margin-bottom: 0px;
+        }
+
+        .captiontxt{
+            font-size: 20px;
+            justify-content: center;
+            display: flex;
+        }
 
         .category1 {
             stroke: #000000;
-            fill: #e64b4b;
+            fill: Red;
             opacity: 1;
+            stroke-width: 1px;
+        }
+
+        .category1:hover {
+            stroke-width: 5;
         }
 
         .category2 {
             stroke: #000000;
-            fill: #69b3a2;
+            fill: Blue;
             opacity: 1;
+            stroke-width: 1px;
+        }
+
+        .category2:hover {
+            stroke-width: 5;
         }
 
         .category3 {
             stroke: #000000;
-            fill: #2bac11;
+            fill: Green;
             opacity: 1;
+            stroke-width: 1px;
         }
+
+        .category3:hover {
+            stroke-width: 5;
+        }
+
 
         .category4 {
             stroke: #000000;
-            fill: #6972ee;
-            opacity: 1;
+            fill: Yellow;
+            stroke-width: 1px;
+        }
+
+        .category4:hover {
+            stroke-width: 5;
         }
 
         .category5 {
             stroke: #000000;
-            fill: #ffa806;
+            fill: Purple;
             opacity: 1;
+            stroke-width: 1px;
+        }
+
+        .category5:hover {
+            stroke-width: 5;
         }
 
         .category6 {
             stroke: #000000;
-            fill: #e6079c;
+            fill: Orange;
             opacity: 1;
+            stroke-width: 1px;
+        }
+
+        .category6:hover {
+            stroke-width: 5;
         }
 
         .category7 {
             stroke: #000000;
-            fill: #d0e607;
+            fill: Cyan;
             opacity: 1;
+            stroke-width: 1px;
+        }
+
+        .category7:hover {
+            stroke-width: 5;
+        }
+
+        .tooltip {
+            background-color: rgb(104, 144, 150);
+            border: none;
+            border-radius: 5px;
+            padding: 15px;
+            min-width: 20px;
+            text-align: left;
+            color: white;
+            font-size: 15px;
+            position: absolute;
         }
     </style>
 </head>
 
 <body>
-<!--     <div id="tooltips"></div> -->
+    <header>
+        <span class="headtxt">Assignment 3 - Tabular Data Visualization</span>
+        <span class="captiontxt">
+            <ul id="myList">
+                <li>
+                    How  does the Per Square Foot(psf) of HDB price  vary from 2017 to now?
+                </li>
+                <li>
+                    How does the types of the HDB affecting their value?
+                </li>
+              </ul>
+        </span><br><br>
+        <span>
+        </span><br>
+    </header>
     <svg id="datavis"></svg>
     <script>
         const parseDate = d3.timeParse("%Y-%m");
@@ -136,7 +239,7 @@
                     interQuantileRange = q3 - q1
                     min = d3.min(g.map(function (d) { return d.psf }))//q1 - 1.5 * interQuantileRange
                     max = d3.max(g.map(function (d) { return d.psf }))//q3 + 1.5 * interQuantileRange
-                    return ({ q1: q1, median: median, q3: q3, interQuantileRange: interQuantileRange, min: min, max: max })
+                    return ({ q1: q1, median: median, q3: q3, interQuantileRange: interQuantileRange, min: min, max: max, size: g.length })
                 })
                 .entries(data);
             return cookeddata;
@@ -209,7 +312,7 @@
                 .attr("transform", "rotate(-90)")
                 .attr("font-size", "40px")
                 .attr("fill", "black")
-                .text("Price per Square Foot");
+                .text("Price Per Square Foot");
 
             return [x, y];
         }
@@ -268,79 +371,184 @@
 
         function addviselements_multi(svg, data, scales, divides) {
 
-            var tooltip = d3.select("#datavis")
+
+            var tooltip = d3.select("body")
                 .append("div")
-                .style("opacity", 0)
                 .attr("class", "tooltip")
-                .style("background-color", "black")
-                .style("border-radius", "5px")
-                .style("padding", "10px")
-                .style("color", "white")
+                .style("opacity", 0)
+
+            var formatTooltip = function (d) {
+                // console.log(d)
+                var tooltipHTML = "<pre>Room  Type: " + d.key + "<br>";
+                tooltipHTML += "Median PSF: " + Math.round(d.value.median) + "$<br>";
+                tooltipHTML += "Max    PSF: " + Math.round(d.value.max) + "$<br>";
+                tooltipHTML += "Min    PSF: " + Math.round(d.value.min) + "$<br>";
+                tooltipHTML += "# of sales: " + d.value.size + "</pre>";
+                return tooltipHTML;
+            };
 
 
             var showTooltip = function (d, element) {
                 tooltip
-                    .transition()
-                    .duration(200)
-                tooltip
                     .style("opacity", 1)
-                    .html("Room Type: " + d.key)
-                    .style("left", d3.event.pageX + 30 + "px")//.style(d3.mouse(element)[0] + 30 + "px")
-                    .style("top", d3.event.pageY + 30 + "px")//.style(d3.mouse(element)[1] + 30 + "px")
-                console.log(d3.mouse(element)[1] + 30, d.key)
+                    .html(formatTooltip(d))
+                    .style("left", d3.event.pageX + 10 + "px")//
+                    .style("top", d3.event.pageY + 10 + "px")//
             }
 
             var moveTooltip = function (d, element) {
                 tooltip
-                    .style("left", (d3.mouse(element)[0] + 30) + "px")
-                    .style("top", (d3.mouse(element)[1] + 30) + "px");
+                    .style("left", d3.event.pageX + 10 + "px")//
+                    .style("top", d3.event.pageY + 10 + "px")//
             }
 
             var hideTooltip = function (d) {
-                tooltip
-                    .transition()
-                    .duration(200)
-                    .style("opacity", 1);
+                tooltip.style("opacity", 0);
             }
 
             /////////////////////////////////////////
-            var num_subgroups = divides.length;
-            var subgroups = divides.map(d => d.category)
             var [x, y] = scales;
 
+            // legends
+            var rectsize = 20;
+            svg.selectAll("legends")
+                .data(divides)
+                .enter()
+                .append("rect")
+                .attr("x", margin.left + x.bandwidth() / 2)
+                .attr("y", function (d, i) { return margin.top - rectsize + i * (rectsize * 1.5) })
+                .attr("width", rectsize)
+                .attr("height", rectsize)
+                .style("stroke-width", 3)
+                .attr("class", d => d.stylename)
+                .on("click", update)
+            // /.on("click", function(d){d3.select(this).attr("stroke-width", 5)})
+
+            svg.selectAll("legends_txt")
+                .data(divides)
+                .enter()
+                .append("text")
+                .attr("x", margin.left + x.bandwidth() / 2 + rectsize * 1.5)
+                .attr("y", function (d, i) { return margin.top - rectsize + i * (rectsize * 1.5) + rectsize * 2 / 3 })
+                .text(function (d) { return d.category })
+                .attr("text-anchor", "start")
+                .attr("class", d => { return d.stylename })
+                .attr("font-size", "20px")
+                .style("stroke-width", 1)
+            // .classed("legends_txt", true)
+
+            var selected_categories = divides.map(d => d.category)
+
+
+            function update(data) {
+
+                console.log(selected_categories)
+                // console.log(divides)
+                if (selected_categories.find(i => i == data.category)) {
+                    selected_categories = selected_categories.filter(item => item !== data.category);
+                    d3.select(this).style("stroke-width", 0)
+                }
+                else {
+                    selected_categories.push(data.category);
+                    d3.select(this).style("stroke-width", 4)
+                }
+                // var selected_categories = ["1 ROOM", "2 ROOM", "3 ROOM", "4 ROOM"];//divides.map(d => d.category)
+                var xSubgroup = d3.scaleBand()
+                    .domain(selected_categories)
+                    .range([0, x.bandwidth()])
+                    .paddingInner(0.2)
+
+
+                const verlines_group = svg.selectAll(".verlines_group")
+                    .selectAll(".vertLines")
+                    .data(d => { return d.values.filter(i => selected_categories.includes(i.key)); })
+                verlines_group
+                    .enter()
+                    .append("line")
+                    .merge(verlines_group)
+                    .attr("x1", function (d) { return xSubgroup(d.key) + xSubgroup.bandwidth() })
+                    .attr("x2", function (d) { return xSubgroup(d.key) + xSubgroup.bandwidth() })
+                    .attr("y1", function (d) { return (y(d.value.min)) })
+                    .attr("y2", function (d) { return (y(d.value.max)) })
+                    .attr("stroke", "black")
+                    .style("width", 40)
+                    .classed("vertLines", true)
+                verlines_group.exit().remove()
+
+
+                var boxes_group = svg.selectAll(".boxes_group").selectAll(".boxes")
+                    .data(d => { return d.values.filter(i => selected_categories.includes(i.key)); })
+                boxes_group
+                    .enter()
+                    .append("rect")
+                    .merge(boxes_group)
+                    .attr("x", function (d) { return xSubgroup(d.key) + xSubgroup.bandwidth() / 2 })
+                    .attr("y", function (d) { return (y(d.value.q3)) })
+                    .attr("height", function (d) { return (y(d.value.q1) - y(d.value.q3)) })
+                    .attr("width", xSubgroup.bandwidth())
+                    .attr("class", d => { return divides.filter(g => { return d.key == g.category })[0].stylename })
+                    .classed("boxes", true)
+                    .on("mouseover", function (d) { showTooltip(d, this); })
+                    .on("mousemove", function (d) { moveTooltip(d, this); })
+                    .on("mouseleave", hideTooltip)
+                boxes_group.exit().remove()
+
+
+                const medianLines_group = svg.selectAll(".medianLines_group").selectAll(".medianLines")
+                    .data(d => { return d.values.filter(i => selected_categories.includes(i.key)); })
+                medianLines_group
+                    .enter()
+                    .append("line")
+                    .merge(medianLines_group)
+                    .attr("x1", function (d) { return (xSubgroup(d.key) + xSubgroup.bandwidth() / 2) })
+                    .attr("x2", function (d) { return (xSubgroup(d.key) + xSubgroup.bandwidth() * 3 / 2) })
+                    .attr("y1", function (d) { return (y(d.value.median)) })
+                    .attr("y2", function (d) { return (y(d.value.median)) })
+                    .attr("stroke", "black")
+                    .classed("medianLines", true)
+                medianLines_group.exit().remove()
+
+            }
+
+
             // Create sub scales.
+            var num_subgroups = divides.length;
+            var subgroups = divides.map(d => d.category)
             var xSubgroup = d3.scaleBand()
                 .domain(subgroups)
                 .range([0, x.bandwidth()])
                 .paddingInner(0.2)
 
 
-            svg.append("g")
-                .selectAll("g")
+            // verlines
+            svg.selectAll("verlines_group")
                 .data(data)
                 .enter()
                 .append("g")
                 .attr("transform", function (d) { return "translate(" + x(d.key) + ",0)"; }) //d.key should be year.
-                .selectAll("vertLines")
+                .classed("verlines_group", true)
+                .selectAll(".vertLines")
                 .data(d => { return d.values; })
                 .enter()
                 .append("line")
-                .classed("vertLines", true)
                 .attr("x1", function (d) { return xSubgroup(d.key) + xSubgroup.bandwidth() })
                 .attr("x2", function (d) { return xSubgroup(d.key) + xSubgroup.bandwidth() })
                 .attr("y1", function (d) { return (y(d.value.min)) })
                 .attr("y2", function (d) { return (y(d.value.max)) })
                 .attr("stroke", "black")
                 .style("width", 40)
-                .attr("class", d => { return divides.filter(g => { return d.key == g.category })[0].stylename })
+                .classed("vertLines", true)
+            // .classed("vertLines", true)
+            // .attr("class", d => { return divides.filter(g => { return d.key == g.category })[0].stylename })
 
-            svg.append("g")
-                .selectAll("g")
+            //boxes
+            svg.selectAll(".boxes_group")
                 .data(data)
                 .enter()
                 .append("g")
                 .attr("transform", function (d) { return "translate(" + x(d.key) + ",0)"; }) //d.key should be year.
-                .selectAll("rect")
+                .classed("boxes_group", true)
+                .selectAll(".boxes")
                 .data(d => { return d.values; })
                 .enter()
                 .append("rect")
@@ -354,34 +562,24 @@
                 .on("mousemove", function (d) { moveTooltip(d, this); })
                 .on("mouseleave", hideTooltip)
 
-            svg.append("g")
-                .selectAll("g")
+            //median lines
+            svg.selectAll(".medianLines_group")
                 .data(data)
                 .enter()
                 .append("g")
                 .attr("transform", function (d) { return "translate(" + x(d.key) + ",0)"; }) //d.key should be year.
-                .selectAll("vertLines")
+                .classed("medianLines_group", true)
+                .selectAll(".medianLines")
                 .data(d => { return d.values; })
                 .enter()
                 .append("line")
-                .classed("medianLines", true)
+                // .classed("medianLines", true)
                 .attr("x1", function (d) { return (xSubgroup(d.key) + xSubgroup.bandwidth() / 2) })
                 .attr("x2", function (d) { return (xSubgroup(d.key) + xSubgroup.bandwidth() * 3 / 2) })
                 .attr("y1", function (d) { return (y(d.value.median)) })
                 .attr("y2", function (d) { return (y(d.value.median)) })
                 .attr("stroke", "black")
-
-            // svg.selectAll("seplines")
-            //     .data(data)
-            //     .enter()
-            //     .append("line")
-            //     .classed("seplines", true)
-            //     .attr("x1", function (d) { return x(d.key) + x.bandwidth() })
-            //     .attr("x2", function (d) { return x(d.key) + x.bandwidth() })
-            //     .attr("y1", function (d) { return margin.top })
-            //     .attr("y2", function (d) { return margin.top + height })
-            //     .attr("stroke", "black")
-            //     .style("width", 40)
+                .classed("medianLines", true)
         }
 
 
@@ -420,8 +618,8 @@
             { category: "3 ROOM", type: "3 ROOM", stylename: "category3" },
             { category: "4 ROOM", type: "4 ROOM", stylename: "category4" },
             { category: "5 ROOM", type: "5 ROOM", stylename: "category5" },
-            // { category: "EXECUTIVE", type: "EXECUTIVE", stylename: "category6" },
-            // { category: "MULTI-GENERATION", type: "MULTI-GENERATION", stylename: "category7" },
+            { category: "EXECUTIVE", type: "EXECUTIVE", stylename: "category6" },
+            { category: "MULTI-GENERATION", type: "MULTI-GENERATION", stylename: "category7" },
 
         ];
 
